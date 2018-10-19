@@ -24,7 +24,7 @@ def plot_svc_decision_function(model, ax = None, plot_support = True):
                    model.support_vectors_[:,1],
                    s=300, linewidth=1, color="b", facecolors='none')
     ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+    ax.set_ylim(ylim) #
     plt.show()
 
 
