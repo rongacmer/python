@@ -32,7 +32,7 @@ def plot_svc_decision_function(model, ax = None, plot_support = True):
 
 
 def main():
-    X,y = make_blobs(n_samples=50, centers= 2, cluster_std = 0.6, random_state = random.randint(0, 100))
+    X,y = make_blobs(n_samples=20, centers= 2, cluster_std = 0.6, random_state = 10)
     for i in range(len(y)):
         if(y[i] == 0):
             y[i] = -1
