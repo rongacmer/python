@@ -4,35 +4,45 @@ from config import cfg
 from sklearn import preprocessing
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
+from sklearn import metrics
 
 
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 18))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 9))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
     for line in fr.readlines():
         line = line.strip()
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:18])
+        returnMat[index, :] = (listFromLine[0:9])
         classLabelVector.append(float(listFromLine[-1]))
+        if classLabelVector[index] == 2:
+            classLabelVector[index] = -1
         index += 1
-    X_scale = preprocessing.scale(returnMat)
+    X_scale = preprocessing.minmax_scale(returnMat)
     return X_scale, classLabelVector
 
 
 def nearestPD(A):
     B = (A + A.T) / 2
-    _, s, V = np.linalg.svd(B)
+    spacing = np.spacing(np.linalg.norm(A))
+    fail = 1
+    while(fail):
+        try:
+            _, s, V = np.linalg.svd(B)
+            fail = 0
+        except:
+            B = np.eye(A.shape[0]) * spacing + B
     H = np.dot(V.T, np.dot(np.abs(np.diag(s)), V)) #V输出
     A2 = (B + H) / 2
     A3 = (A2 + A2.T) / 2
 
     if isPD(A3):
         return A3
-    spacing = np.spacing(np.linalg.norm(A))
+
 
     I = np.eye(A.shape[0])
     k = 1
@@ -56,15 +66,18 @@ def get_train_acc(kernel, label):
     predict = clf.predict(kernel)
     return accuracy_score(label, predict)
 
-def fitness_function(kernel, yy, label):
-    m, n = np.shape(yy)
-    molecular = np.sum(np.multiply(kernel, yy)) #分子
+def fitness_function(kernel, label):
+    m, n = np.shape(kernel)
+    train_kernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
+    train_label = label[0:int(cfg.test_percent * m)]
+    yy = train_label.T * train_label
+    molecular = np.sum(np.multiply(train_kernel, yy)) #分子
     # print("dididid")
-    Denominator = np.sqrt(np.sum(np.multiply(kernel, kernel))) #分母
+    Denominator = np.sqrt(np.sum(np.multiply(train_kernel, train_kernel))) #分母
     # print("casssss")
     alignment_value = molecular/(m*Denominator)
     # print("ddfadsf")
-    return alignment_value
+    return alignment_value,auc_measure(kernel, label)[1]
     # return np.sum(kernel * yy) / np.linalg.norm(kernel) / np.linalg.norm(yy)
 
 
@@ -96,39 +109,79 @@ def computer_b(dataMat,label, kernel):
 
 def computer_acc(kernel, label):
     m, n = np.shape(kernel)
-    train_kernel = kernel[0:int(cfg.train_percent*m), 0:int(cfg.train_percent*m)]
-    train_label = label[0:int(cfg.train_percent*m)]
-    test_kernel = kernel[int(cfg.train_percent*m):, 0:int(cfg.train_percent*m)]
-    test_label = label[int(cfg.train_percent*m):]
-    train_label = np.reshape(train_label, (len(train_label, )))
+    train_kernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent*m)]
+    train_label = label[0:int(cfg.test_percent * m)]
+    test_kernel = kernel[int(cfg.test_percent * m):int(cfg.train_percent * m), 0:int(cfg.test_percent * m)]
+    test_label = label[int(cfg.test_percent * m):int(cfg.train_percent * m)]
+    # train_label = np.reshape(train_label, (len(train_label, )))
     clf = SVC(C=cfg.C, kernel='precomputed')
     clf.fit(train_kernel, train_label)
     predict = clf.predict(test_kernel)
-    return accuracy_score(test_label, predict)
+    return accuracy_score(test_label, predict),auc_measure(kernel, label)[1]
 
 def computer_acc_test(kernel, label):
     m, n = np.shape(kernel)
     train_kernel = kernel[0:int(cfg.test_percent*m), 0:int(cfg.test_percent*m)]
     train_label = label[0:int(cfg.test_percent*m)]
-    test_kernel = kernel[int(cfg.test_percent*m):, 0:int(cfg.test_percent*m)]
-    test_label = label[int(cfg.test_percent*m):]
+    test_kernel = kernel[int(cfg.train_percent * m):, 0:int(cfg.test_percent*m)]
+    test_label = label[int(cfg.train_percent * m):]
     # train_label = np.reshape(train_label, (len(train_label, )))
     clf = SVC(C=cfg.C, kernel='precomputed')
     clf.fit(train_kernel, train_label)
     predict = clf.predict(test_kernel)
-    return accuracy_score(test_label, predict)
+    # predict = clf.decision_function(test_kernel)
+    # auc = metrics.roc_auc_score(test_label, predict)
+    return accuracy_score(test_label, predict),clf.support_
 
-def computer_tr(clf, kernel, label):
+def computer_tr(kernel, label):
     m, n = np.shape(kernel)
-    tkernel = kernel[0:int(cfg.train_percent * m), 0:int(cfg.train_percent * m)]
-    klabel = label[0:int(cfg.train_percent * m)]
+    tkernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
+    klabel = label[0:int(cfg.test_percent * m)]
+    clf = SVC(C=cfg.C, kernel='precomputed')
+    clf.fit(tkernel, klabel)
     predict = clf.predict(tkernel)
-    return fitness_function(klabel, predict)
+    return accuracy_score(klabel, predict), clf.support_
 
+def auc_measure(kernel, label):
+    m, n = np.shape(kernel)
+    tkernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
+    klabel = label[0:int(cfg.test_percent * m)]
+    trkernel = kernel[0:int(cfg.train_percent * m), 0:int(cfg.test_percent * m)]
+    trlabel = label[0:int(cfg.train_percent * m)]
+    allkernel = kernel[int(cfg.train_percent * m):, 0:int(cfg.test_percent * m)]
+    alllabel = label[int(cfg.train_percent * m):]
+    clf = SVC(C = cfg. C, kernel = 'precomputed')
+    clf.fit(tkernel, klabel)
+    predict = clf.decision_function(trkernel)
+    all_predict = clf.decision_function(allkernel)
+    auc = metrics.roc_auc_score(trlabel, predict)
+    all_aucpredict = metrics.roc_auc_score(alllabel, all_predict)
+    return auc, all_aucpredict
 
-def get_kernel_yy(kernel, m, label):
-    ktrain = kernel[0:int(cfg.train_percent * m), 0:int(cfg.train_percent * m)]
-    klabel = label[0:int(cfg.train_percent * m)]
+def f_measure(kernel, label):
+    m, n = np.shape(kernel)
+    train_kernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
+    train_label = label[0:int(cfg.test_percent * m)]
+    clf = SVC(C = cfg.C, kernel='precomputed')
+    clf.fit(train_kernel, train_label)
+    predict = clf.predict(train_kernel)
+    tp, fp, fn, fm = 0, 0, 0, 0
+    for i in range(len(train_label)):
+        if predict[i] > 0 and train_label[i] > 0:
+            tp += 1
+        if predict[i] > 0 and train_label[i] < 0:
+            fp +=1
+        if predict[i] < 0 and train_label[i] > 0:
+            fn +=1
+        if predict[i] < 0 and train_label[i] < 0:
+            fm +=1
+    p = tp / (tp + fp)
+    q = tp / (tp + fn)
+    return (2 * p * q) / (p + q)
+
+def get_kernel_yy(kernel, m, label, rate):
+    ktrain = kernel[0:int(rate * m), 0:int(rate * m)]
+    klabel = label[0:int(rate * m)]
     # ktrain = np.mat(ktrain)
     # klabel = np.mat(klabel)
     train_yy = np.dot(klabel, klabel.T)
@@ -163,4 +216,56 @@ def generate_data(data, kernel):
     label_BP = data_BP[:, -1]
     return normalized_data_BP_ex, label_BP
 
+def PR_SORT(decision, label):
+    p_r = list()
+    for i in range(len(decision)):
+        p_r.append([decision[i], int(label[i])])
+    p_r.sort(key = lambda x:x[0], reverse = True)
+    res = []
+    for i in p_r:
+        res.append(i[1])
+    return res
 
+def pr_area(decision, label):
+    label = PR_SORT(decision, label)
+    pos = label.count(-1)
+    neg = label.count(1)
+    tp = 0
+    fn = pos
+    fp = 0
+    area = 0
+    left_p = 0
+    left_r = 0
+    for i, l in enumerate(label):
+        if l == 1 :
+            tp += 1
+            fn -= 1
+        elif l == -1:
+            fp += 1
+        else:
+            raise ('erro')
+        r = tp / (tp + fn)
+        p = tp / (tp + fp)
+        # if r >= 0.05 and r <= 0.5:
+        if left_p and left_r:
+            area += (left_p + p) * (r - left_r) / 2
+        left_r = r
+        left_p = p
+    return area
+
+
+def PR_measure(kernel, label):
+    m, n = np.shape(kernel)
+    tkernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
+    klabel = label[0:int(cfg.test_percent * m)]
+    trkernel = kernel[int(cfg.test_percent * m):int(cfg.train_percent * m), 0:int(cfg.test_percent * m)]
+    trlabel = label[int(cfg.test_percent * m):int(cfg.train_percent * m)]
+    allkernel = kernel[int(cfg.train_percent * m):, 0:int(cfg.test_percent * m)]
+    alllabel = label[int(cfg.train_percent * m):]
+    clf = SVC(C = cfg. C, kernel = 'precomputed')
+    clf.fit(tkernel, klabel)
+    decision = clf.decision_function(trkernel)
+    PR = pr_area(decision, trlabel)
+    all_decision = clf.decision_function(allkernel)
+    all_PR = pr_area(all_decision, alllabel)
+    return PR, all_PR
