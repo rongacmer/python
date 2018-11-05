@@ -140,7 +140,7 @@ def cross_test(data, label, f_handle):
         position_list = select_position(kernel, np.mat(label), int(kernel.shape[0] * cfg.test_percent), rate)
         print(rate)
         print(len(position_list))
-        kernel, accuracy = Solve(kernel, np.mat(label), f_handle, position_list, toolbox.computer_acc)
+        kernel, accuracy = Solve(kernel, np.mat(label), f_handle, position_list, toolbox.PR_measure)
         # rate *= cfg.T
     # kernel = toolbox.nearestPD(kernel)
     f_handle.write("best_kernel:" + str(kernel) + "\n")
