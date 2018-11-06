@@ -7,7 +7,7 @@ import mulsvmpso
 from sklearn.metrics.pairwise import rbf_kernel, polynomial_kernel, sigmoid_kernel
 from config import cfg
 from Adaboost import adaboost
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold,train_test_split
 
 
 
@@ -19,15 +19,17 @@ def main(_):
     crossdata = data.copy()
     crosslabel = label.copy()
     # print(type(data))
-    f_handle = open('mulsvmlog-vehicle16.txt', mode='w')
+    f_handle = open('mulsvmlog-vehicle19.txt', mode='w')
     # test_data, test_label = toolbox.loadData('test.data')
     # svmpso.cross_test(data, label, f_handle)
     TEST = 0
-    sfolder = StratifiedKFold(n_splits = 5, random_state = 0, shuffle = False)
+    sfolder = StratifiedKFold(n_splits = 10, random_state = 0, shuffle = False)
     for train, test in sfolder.split(crossdata, crosslabel):
         # print(crossdata[train])
         data[0:len(train)], data[len(train):] = crossdata[train],crossdata[test]
         label[0:len(train)], label[len(train):] =  crosslabel[train], crosslabel[test]
+        X_train, X_test, y_train, y_test = train_test_split(data[0:len(train)], label[0:len(train)], test_size=1 - cfg.test_percent ,stratify=label[0:len(train)])
+        data[0: X_train.shape[0]], data[X_train.shape[0]:len(train)], label[0:len(y_train)], label[len(y_train):len(train)] = X_train, X_test, y_train, y_test
         f_handle.write("*******************" + str(TEST) + "th test *****************\n")
         print("*******************" + str(TEST) + "th test *****************\n")
         mulsvmpso.cross_test(data, label, f_handle)

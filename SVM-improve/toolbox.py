@@ -10,17 +10,17 @@ from sklearn import metrics
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 9))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 18))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
     for line in fr.readlines():
         line = line.strip()
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:9])
+        returnMat[index, :] = (listFromLine[0:18])
         classLabelVector.append(float(listFromLine[-1]))
-        if classLabelVector[index] == 2:
-            classLabelVector[index] = -1
+        # if classLabelVector[index] == 2:
+        #     classLabelVector[index] = -1
         index += 1
     X_scale = preprocessing.minmax_scale(returnMat)
     return X_scale, classLabelVector
@@ -121,10 +121,12 @@ def computer_acc(kernel, label):
 
 def computer_acc_test(kernel, label):
     m, n = np.shape(kernel)
-    train_kernel = kernel[0:int(cfg.test_percent*m), 0:int(cfg.test_percent*m)]
-    train_label = label[0:int(cfg.test_percent*m)]
-    test_kernel = kernel[int(cfg.train_percent * m):, 0:int(cfg.test_percent*m)]
-    test_label = label[int(cfg.train_percent * m):]
+    verify = int(cfg.train_percent * m)
+    test_assemble = int(verify * cfg.test_percent)
+    train_kernel = kernel[0:test_assemble, 0:test_assemble]
+    train_label = label[0:test_assemble]
+    test_kernel = kernel[verify:, 0:test_assemble]
+    test_label = label[verify:]
     # train_label = np.reshape(train_label, (len(train_label, )))
     clf = SVC(C=cfg.C, kernel='precomputed')
     clf.fit(train_kernel, train_label)
@@ -144,6 +146,7 @@ def computer_tr(kernel, label):
 
 def auc_measure(kernel, label):
     m, n = np.shape(kernel)
+
     tkernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
     klabel = label[0:int(cfg.test_percent * m)]
     trkernel = kernel[0:int(cfg.train_percent * m), 0:int(cfg.test_percent * m)]
@@ -231,7 +234,7 @@ def pr_area(decision, label):
     pos = label.count(-1)
     neg = label.count(1)
     tp = 0
-    fn = pos
+    fn = neg
     fp = 0
     area = 0
     left_p = 0
@@ -246,7 +249,6 @@ def pr_area(decision, label):
             raise ('erro')
         r = tp / (tp + fn)
         p = tp / (tp + fp)
-        # if r >= 0.05 and r <= 0.5:
         if left_p and left_r:
             area += (left_p + p) * (r - left_r) / 2
         left_r = r
@@ -256,16 +258,22 @@ def pr_area(decision, label):
 
 def PR_measure(kernel, label):
     m, n = np.shape(kernel)
-    tkernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
-    klabel = label[0:int(cfg.test_percent * m)]
-    trkernel = kernel[int(cfg.test_percent * m):int(cfg.train_percent * m), 0:int(cfg.test_percent * m)]
-    trlabel = label[int(cfg.test_percent * m):int(cfg.train_percent * m)]
-    allkernel = kernel[int(cfg.train_percent * m):, 0:int(cfg.test_percent * m)]
-    alllabel = label[int(cfg.train_percent * m):]
+    verify = int(cfg.train_percent * m)
+    test_assemble = int(verify * cfg.test_percent)
+    tkernel = kernel[0:test_assemble, 0:test_assemble]
+    klabel = label[0:test_assemble]
+    trkernel = kernel[test_assemble:verify, 0:test_assemble]
+    trlabel = label[test_assemble:verify]
+    allkernel = kernel[verify:, 0:test_assemble]
+    alllabel = label[verify:]
     clf = SVC(C = cfg. C, kernel = 'precomputed')
     clf.fit(tkernel, klabel)
     decision = clf.decision_function(trkernel)
-    PR = pr_area(decision, trlabel)
+    precision, recall, _ = metrics.precision_recall_curve(trlabel, decision)
+    PR = metrics.auc(recall, precision)
+    # PR = pr_area(decision, trlabel)
     all_decision = clf.decision_function(allkernel)
-    all_PR = pr_area(all_decision, alllabel)
+    precision, recall, _ = metrics.precision_recall_curve(alllabel, all_decision)
+    all_PR = metrics.auc(recall, precision)
+    # all_PR = pr_area(all_decision, alllabel)
     return PR, all_PR

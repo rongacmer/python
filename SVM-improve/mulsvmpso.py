@@ -40,8 +40,10 @@ class Particle:
             if seed > 0:
                 self.position[i[0], i[1]] = (upperbound - lowbound) * self.rnd.random() + lowbound
                 self.position[i[1], i[0]] = self.position[i[0], i[1]]
+        self.position = toolbox.nearestPD(self.position)
         self.best_part_position = self.position.copy()
         self.best_accuracy = f_test(self.position, np.ravel(label.T))[0]
+        # toolbox.auc_measure(self.position, np.ravel(label.T))[0]]
 
 def Solve(kernel, label, f_handle, position_list, f_test = None):
     rnd = random.Random()
@@ -83,6 +85,7 @@ def Solve(kernel, label, f_handle, position_list, f_test = None):
             swarm[i].position = swarm[i].position + swarm[i].velocity
             nearet_spd_kernel = toolbox.nearestPD(swarm[i].position)
             accuracy, allacuracy = f_test(nearet_spd_kernel, np.ravel(label))
+            # accuracy = [accuracy, toolbox.auc_measure(nearet_spd_kernel, np.ravel(label))[0]]
             f_handle.write("---------------------------------------------\n")
             if accuracy > swarm[i].best_accuracy :
                 swarm[i].position = copy.copy(nearet_spd_kernel)
@@ -115,7 +118,7 @@ def select_position(kernel, lable, m, rate):
     print(len(support_vector))
     for i in range(m):
         for j in range(i - 1):
-            if rand_pick(value_list, probabilities) and i in support_vector and j in support_vector and train_label[i, j] < 0:
+            if rand_pick(value_list, probabilities): #and i in support_vector and j in support_vector: #and train_label[i, j] < 0:
                 position_list.append([i, j])
     return position_list
 

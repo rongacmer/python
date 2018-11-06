@@ -4,14 +4,14 @@ flags = tf.app.flags
 
 flags.DEFINE_float('min_velocity', -1, 'The minimum speed of particle update')
 flags.DEFINE_float('max_velocity', 1, 'The maximum speed of particle update')
-flags.DEFINE_float('C', 1.0, 'C')
-flags.DEFINE_float('train_percent', 0.8, 'percent of the trainData')
-flags.DEFINE_float('test_percent', 0.6, 'percent of the testData')
+flags.DEFINE_float('C', 0.5, 'C')
+flags.DEFINE_float('train_percent', 0.9, 'percent of the trainData')
+flags.DEFINE_float('test_percent', 0.8, 'percent of the testData')
 flags.DEFINE_integer('max_epoch', 5, 'The maximum number of iterations')
 flags.DEFINE_integer('n_particles', 10, 'number of particles')
 flags.DEFINE_integer('max_step', 5, 'The maximum number of outer iteration')
-flags.DEFINE_float('origin_rate', 0.1, 'origin_rate')
-flags.DEFINE_float('T',0.3,'Decreasing temperature')
+flags.DEFINE_float('origin_rate', 0.001, 'origin_rate')
+flags.DEFINE_float('T',0.7,'Decreasing temperature')
 
 ########################Adaboost parameters#########################
 flags.DEFINE_float('learning_rate', 0.1, 'learning rate of adaboost')
