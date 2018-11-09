@@ -10,14 +10,14 @@ from sklearn import metrics
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 18))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 9))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
     for line in fr.readlines():
         line = line.strip()
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:18])
+        returnMat[index, :] = (listFromLine[0:9])
         classLabelVector.append(float(listFromLine[-1]))
         # if classLabelVector[index] == 2:
         #     classLabelVector[index] = -1
@@ -109,15 +109,20 @@ def computer_b(dataMat,label, kernel):
 
 def computer_acc(kernel, label):
     m, n = np.shape(kernel)
-    train_kernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent*m)]
-    train_label = label[0:int(cfg.test_percent * m)]
-    test_kernel = kernel[int(cfg.test_percent * m):int(cfg.train_percent * m), 0:int(cfg.test_percent * m)]
-    test_label = label[int(cfg.test_percent * m):int(cfg.train_percent * m)]
+    verify = int(cfg.train_percent * m)
+    test_assemble = int(verify * cfg.test_percent)
+    train_kernel = kernel[0:test_assemble, 0:test_assemble]
+    train_label = label[0:test_assemble]
+    test_kernel = kernel[test_assemble:verify, 0:test_assemble]
+    test_label = label[test_assemble:verify]
     # train_label = np.reshape(train_label, (len(train_label, )))
     clf = SVC(C=cfg.C, kernel='precomputed')
     clf.fit(train_kernel, train_label)
+    predict = clf.predict(train_kernel)
+    traccuray = accuracy_score(train_label, predict)
     predict = clf.predict(test_kernel)
-    return accuracy_score(test_label, predict),auc_measure(kernel, label)[1]
+    accuracy = accuracy_score(test_label, predict)
+    return f_target(traccuray, accuracy),auc_measure(kernel, label)[1], traccuray, accuracy
 
 def computer_acc_test(kernel, label):
     m, n = np.shape(kernel)
@@ -133,10 +138,11 @@ def computer_acc_test(kernel, label):
     predict = clf.predict(test_kernel)
     # predict = clf.decision_function(test_kernel)
     # auc = metrics.roc_auc_score(test_label, predict)
-    return accuracy_score(test_label, predict),clf.support_
+    return accuracy_score(test_label, predict),clf.support_,clf.dual_coef_
 
 def computer_tr(kernel, label):
     m, n = np.shape(kernel)
+
     tkernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
     klabel = label[0:int(cfg.test_percent * m)]
     clf = SVC(C=cfg.C, kernel='precomputed')
@@ -146,20 +152,23 @@ def computer_tr(kernel, label):
 
 def auc_measure(kernel, label):
     m, n = np.shape(kernel)
-
-    tkernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
-    klabel = label[0:int(cfg.test_percent * m)]
-    trkernel = kernel[0:int(cfg.train_percent * m), 0:int(cfg.test_percent * m)]
-    trlabel = label[0:int(cfg.train_percent * m)]
-    allkernel = kernel[int(cfg.train_percent * m):, 0:int(cfg.test_percent * m)]
-    alllabel = label[int(cfg.train_percent * m):]
+    verify = int(cfg.train_percent * m)
+    test_assemble = int(verify * cfg.test_percent)
+    tkernel = kernel[0:test_assemble, 0:test_assemble]
+    klabel = label[0:test_assemble]
+    trkernel = kernel[test_assemble:verify, 0:test_assemble]
+    trlabel = label[test_assemble:verify]
+    allkernel = kernel[verify:, 0:test_assemble]
+    alllabel = label[verify:]
     clf = SVC(C = cfg. C, kernel = 'precomputed')
     clf.fit(tkernel, klabel)
+    predict = clf.decision_function(tkernel)
+    auc = metrics.roc_auc_score(klabel, predict)
     predict = clf.decision_function(trkernel)
-    all_predict = clf.decision_function(allkernel)
-    auc = metrics.roc_auc_score(trlabel, predict)
-    all_aucpredict = metrics.roc_auc_score(alllabel, all_predict)
-    return auc, all_aucpredict
+    verify_auc = metrics.roc_auc_score(trlabel, predict)
+    predict = clf.decision_function(allkernel)
+    t_auc = metrics.roc_auc_score(alllabel, predict)
+    return f_target(auc, verify_auc),auc, verify_auc, t_auc
 
 def f_measure(kernel, label):
     m, n = np.shape(kernel)
@@ -268,6 +277,9 @@ def PR_measure(kernel, label):
     alllabel = label[verify:]
     clf = SVC(C = cfg. C, kernel = 'precomputed')
     clf.fit(tkernel, klabel)
+    decision = clf.decision_function(tkernel)
+    precision, recall, _ = metrics.precision_recall_curve(klabel, decision)
+    tPR = metrics.auc(recall, precision)
     decision = clf.decision_function(trkernel)
     precision, recall, _ = metrics.precision_recall_curve(trlabel, decision)
     PR = metrics.auc(recall, precision)
@@ -276,4 +288,7 @@ def PR_measure(kernel, label):
     precision, recall, _ = metrics.precision_recall_curve(alllabel, all_decision)
     all_PR = metrics.auc(recall, precision)
     # all_PR = pr_area(all_decision, alllabel)
-    return PR, all_PR
+    return f_target(tPR, PR), all_PR, PR, tPR
+
+def f_target(A, B):
+    return 0.1 * A + 0.9 * B - 0.1 * A * abs(A - B)
