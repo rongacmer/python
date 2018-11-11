@@ -26,7 +26,7 @@ def rand_pick(seq, probabilities):
 
 
 class Particle:
-    def __init__(self, seed, X, label, position_list, f_test = None):
+    def __init__(self, seed, X, label, position_list, f_test = None, train_percent = None):
         m, n = np.shape(X)
         seed = seed * random.Random().random()
         self.position = X.copy()
@@ -42,20 +42,20 @@ class Particle:
                 self.position[i[1], i[0]] = self.position[i[0], i[1]]
         self.position = toolbox.nearestPD(self.position)
         self.best_part_position = self.position.copy()
-        self.best_accuracy = f_test(self.position, np.ravel(label.T))[0]
+        self.best_accuracy = f_test(self.position, np.ravel(label.T), train_percent = train_percent)[0]
         # toolbox.auc_measure(self.position, np.ravel(label.T))[0]]
 
-def Solve(kernel, label, f_handle, position_list, f_test = None):
+def Solve(kernel, label, f_handle, position_list, f_test = None, train_percent = None):
     rnd = random.Random()
-    symbol  = Particle(-1, kernel, label, position_list, f_test)
-    print(symbol.best_accuracy, toolbox.computer_acc_test(symbol.best_part_position, np.ravel(label))[0])
-    swarm = [Particle(i, kernel, label, position_list, f_test) for i in range(cfg.n_particles)]
-    rate, support_index, coef = toolbox.computer_acc_test(kernel, np.ravel(label))
+    symbol  = Particle(-1, kernel, label, position_list, f_test, train_percent = train_percent)
+    print(symbol.best_accuracy, toolbox.computer_acc_test(symbol.best_part_position, np.ravel(label), train_percent = train_percent)[0])
+    swarm = [Particle(i, kernel, label, position_list, f_test, train_percent = train_percent) for i in range(cfg.n_particles)]
+    rate, support_index, coef = toolbox.computer_acc_test(kernel, np.ravel(label), train_percent = train_percent)
     # print(swarm[1].position[x,y], symbol.position[x,y])
     m = kernel.shape[0]
     # best_swarm_fitness = sys.float_info.min
     best_swarm_position = np.mat(np.zeros((m, m)))
-    best_swarm_accuracy = 0.0
+    best_swarm_accuracy = 0
     for i in range(cfg.n_particles):
         # print(swarm[i].position)
         # f_handle.write(str(swarm[i].position) + "\n")
@@ -85,21 +85,23 @@ def Solve(kernel, label, f_handle, position_list, f_test = None):
                 swarm[i].velocity[index[1], index[0]] = swarm[i].velocity[index[0], index[1]]
             swarm[i].position = swarm[i].position + swarm[i].velocity
             nearet_spd_kernel = toolbox.nearestPD(swarm[i].position)
-            accuracy, tracuracy,Vaccuracy, tPR = f_test(nearet_spd_kernel, np.ravel(label))
+            accuracy, tracuracy,Vaccuracy, tPR = f_test(nearet_spd_kernel, np.ravel(label), train_percent = train_percent)
             # accuracy = [accuracy, toolbox.auc_measure(nearet_spd_kernel, np.ravel(label))[0]]
             f_handle.write("---------------------------------------------\n")
-            if accuracy > swarm[i].best_accuracy :
+            if accuracy > swarm[i].best_accuracy:
                 swarm[i].position = copy.copy(nearet_spd_kernel)
                 swarm[i].best_part_position = copy.copy(swarm[i].position)
                 swarm[i].best_accuracy = accuracy
-            if accuracy > best_swarm_accuracy:
+            # if best_swarm_accuracy >= 0.99:
+            #     return best_swarm_position, best_swarm_accuracy
+            if accuracy > best_swarm_accuracy :
                 best_swarm_position = copy.copy(nearet_spd_kernel)
                 best_swarm_accuracy = accuracy
-                rate, support_index, coef = toolbox.computer_acc_test(best_swarm_position, np.ravel(label))
+                rate, support_index, coef = toolbox.computer_acc_test(best_swarm_position, np.ravel(label),train_percent = train_percent)
                 f_handle.write("测试集准确率：" + str(rate) + "\n")
                 # f_handle.write("支持向量:" + str(support_index.shape[0]) + "\n")
-                f_handle.write("f_measure:" + str(accuracy) + " " + str(tracuracy) + " "+ str(Vaccuracy) + "\n")
-                print("f_measure:%f %f %f" % (accuracy, tracuracy, Vaccuracy) + "\n")
+                f_handle.write("f_measure:" + str(accuracy) + " " + str(tPR) + " "+ str(Vaccuracy) + "\n")
+                print("f_measure:%f %f %f" % (accuracy, tPR, Vaccuracy) + "\n")
                 print("测试集准确率：%f %f" % (rate,tPR) + "\n")
             # print("支持向量：", support_index)
         epoch += 1
@@ -122,17 +124,17 @@ def select_position(kernel, lable, m, rate):
     print(len(support_vector))
     for i in range(m):
         for j in range(i - 1):
-            if rand_pick(value_list, probabilities): #and i in support_vector and j in support_vector and train_label[i, j] < 0:
+            if rand_pick(value_list, probabilities) and i in support_vector and j in support_vector:
                 position_list.append([i, j])
     return position_list
 
-def cross_test(data, label, f_handle):
+def cross_test(data, label, f_handle, train_percent = None):
     kernel = rbf_kernel(data)
     # kernel = preprocessing.minmax_scale(kernel)
     # kernel = kernel / max(abs(np.max(kernel)), abs(np.min(kernel)))
     # kernel = toolbox.nearestPD(kernel)
-    acc = toolbox.computer_acc_test(kernel, label)[0]
-    auc = toolbox.auc_measure(kernel, label)[3]
+    acc = toolbox.computer_acc_test(kernel, label, train_percent = train_percent)[0]
+    auc = toolbox.auc_measure(kernel, label, train_percent = train_percent)[3]
     print("初始测试集准确率:%f %f" % (acc, auc))
     f_handle.write("初始测试集准确率:%f %f" + str(acc) + str(auc))
     # kernel = preprocessing.normalize(kernel,norm='l2')
@@ -143,14 +145,19 @@ def cross_test(data, label, f_handle):
     beauc.append(auc)
     rate = cfg.origin_rate
     oldaccuracy = 0
-    mm = int(int(kernel.shape[0] * cfg.test_percent) * cfg.train_percent)
-    print(mm)
+    if train_percent:
+        mm = train_percent
+    else:
+        mm = int(kernel.shape[0] * cfg.test_percent)
+    vacc = toolbox.computer_acc(kernel, label)[3]
     for i in range(cfg.max_step):
         f_handle.write("*******************" + str(i) + "th step*****************\n")
         position_list = select_position(kernel, np.mat(label), mm, rate)
         print(rate)
         print(len(position_list))
-        kernel, accuracy = Solve(kernel, np.mat(label), f_handle, position_list, toolbox.auc_measure)
+        kernel, accuracy = Solve(kernel, np.mat(label), f_handle, position_list, toolbox.computer_acc, train_percent = train_percent)
+        # if toolbox.computer_acc(kernel, label)[3] - vacc >= 0.05:
+        #     break
         if accuracy - oldaccuracy < 1e-6:
             break
         oldaccuracy = accuracy
@@ -163,11 +170,12 @@ def cross_test(data, label, f_handle):
     # print("训练集准确率：%f" % toolbox.computer_tr(kernel, label))
     # f_handle.write("最优核校准值："+str(fitness)+"\n")
     # print("最优核校准值：%f" % fitness)
-    rate, support_index, coef = toolbox.computer_acc_test(kernel, label)
-    allacuracy = toolbox.auc_measure(kernel, label)[3]
+    rate, support_index, coef = toolbox.computer_acc_test(kernel, label, train_percent = train_percent)
+    allacuracy = toolbox.auc_measure(kernel, label, train_percent = train_percent)[3]
     f_handle.write("测试集准确率：" + str(rate) +" "+str(allacuracy) + "\n")
     f_handle.write("支持向量:" + str(support_index) + "\n")
     print("测试集准确率：%f %f" % (rate, allacuracy) + "\n")
     print("支持向量：", support_index)
     aftacc.append(rate)
     aftauc.append(allacuracy)
+    return kernel

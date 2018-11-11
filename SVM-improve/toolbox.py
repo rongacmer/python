@@ -10,14 +10,14 @@ from sklearn import metrics
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 9))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 8))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
     for line in fr.readlines():
         line = line.strip()
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:9])
+        returnMat[index, :] = (listFromLine[0:8])
         classLabelVector.append(float(listFromLine[-1]))
         # if classLabelVector[index] == 2:
         #     classLabelVector[index] = -1
@@ -66,18 +66,20 @@ def get_train_acc(kernel, label):
     predict = clf.predict(kernel)
     return accuracy_score(label, predict)
 
-def fitness_function(kernel, label):
+def fitness_function(kernel, label, train_percent = None):
     m, n = np.shape(kernel)
-    train_kernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
-    train_label = label[0:int(cfg.test_percent * m)]
-    yy = train_label.T * train_label
+    train_kernel = kernel.copy()
+    train_label = label.copy()
+    # train_kernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
+    # train_label = label[0:int(cfg.test_percent * m)]
+    yy = np.mat(train_label).T * np.mat(train_label)
     molecular = np.sum(np.multiply(train_kernel, yy)) #分子
     # print("dididid")
     Denominator = np.sqrt(np.sum(np.multiply(train_kernel, train_kernel))) #分母
     # print("casssss")
     alignment_value = molecular/(m*Denominator)
     # print("ddfadsf")
-    return alignment_value,auc_measure(kernel, label)[1]
+    return alignment_value,auc_measure(kernel, label)[1],0,1
     # return np.sum(kernel * yy) / np.linalg.norm(kernel) / np.linalg.norm(yy)
 
 
@@ -107,10 +109,13 @@ def computer_b(dataMat,label, kernel):
     return float(b), alphasy, support_vectors
 
 
-def computer_acc(kernel, label):
+def computer_acc(kernel, label, train_percent = None):
     m, n = np.shape(kernel)
     verify = int(cfg.train_percent * m)
-    test_assemble = int(verify * cfg.test_percent)
+    if train_percent:
+        test_assemble = train_percent
+    else:
+        test_assemble = int(verify * cfg.test_percent)
     train_kernel = kernel[0:test_assemble, 0:test_assemble]
     train_label = label[0:test_assemble]
     test_kernel = kernel[test_assemble:verify, 0:test_assemble]
@@ -122,12 +127,18 @@ def computer_acc(kernel, label):
     traccuray = accuracy_score(train_label, predict)
     predict = clf.predict(test_kernel)
     accuracy = accuracy_score(test_label, predict)
-    return f_target(traccuray, accuracy),auc_measure(kernel, label)[1], traccuray, accuracy
+    fitness = fitness_function(train_kernel, train_label)[0]
+    percent = len(clf.support_.shape) / train_kernel.shape[1]
+    return f_target(traccuray, accuracy, fitness, percent),auc_measure(kernel, label, train_percent)[1], traccuray, accuracy
 
-def computer_acc_test(kernel, label):
+
+def computer_acc_test(kernel, label, train_percent = None):
     m, n = np.shape(kernel)
     verify = int(cfg.train_percent * m)
-    test_assemble = int(verify * cfg.test_percent)
+    if train_percent:
+        test_assemble = train_percent
+    else:
+        test_assemble = int(verify * cfg.test_percent)
     train_kernel = kernel[0:test_assemble, 0:test_assemble]
     train_label = label[0:test_assemble]
     test_kernel = kernel[verify:, 0:test_assemble]
@@ -142,7 +153,6 @@ def computer_acc_test(kernel, label):
 
 def computer_tr(kernel, label):
     m, n = np.shape(kernel)
-
     tkernel = kernel[0:int(cfg.test_percent * m), 0:int(cfg.test_percent * m)]
     klabel = label[0:int(cfg.test_percent * m)]
     clf = SVC(C=cfg.C, kernel='precomputed')
@@ -150,10 +160,13 @@ def computer_tr(kernel, label):
     predict = clf.predict(tkernel)
     return accuracy_score(klabel, predict), clf.support_
 
-def auc_measure(kernel, label):
+def auc_measure(kernel, label,train_percent = None):
     m, n = np.shape(kernel)
     verify = int(cfg.train_percent * m)
-    test_assemble = int(verify * cfg.test_percent)
+    if train_percent:
+        test_assemble = train_percent
+    else:
+        test_assemble = int(verify * cfg.test_percent)
     tkernel = kernel[0:test_assemble, 0:test_assemble]
     klabel = label[0:test_assemble]
     trkernel = kernel[test_assemble:verify, 0:test_assemble]
@@ -168,7 +181,7 @@ def auc_measure(kernel, label):
     verify_auc = metrics.roc_auc_score(trlabel, predict)
     predict = clf.decision_function(allkernel)
     t_auc = metrics.roc_auc_score(alllabel, predict)
-    return f_target(auc, verify_auc),auc, verify_auc, t_auc
+    return f_target(auc, verify_auc, 0,0),auc, verify_auc, t_auc
 
 def f_measure(kernel, label):
     m, n = np.shape(kernel)
@@ -290,5 +303,11 @@ def PR_measure(kernel, label):
     # all_PR = pr_area(all_decision, alllabel)
     return f_target(tPR, PR), all_PR, PR, tPR
 
-def f_target(A, B):
-    return 0.1 * A + 0.9 * B - 0.1 * A * abs(A - B)
+def f_target(A, B, C,D):
+    res = 0.3 * A + 0.7 * B - 0.8 * abs(A - B) + 5 * C - 0.5 * D
+    return res
+
+def decision_function(kernel, alpha, b):
+    decision = alpha * kernel.T + b
+    print(decision)
+    return decision

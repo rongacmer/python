@@ -15,15 +15,19 @@ def support_vector(kernel, label):
     return clf.support_.copy()
 
 def solve(data, label):
-    kernel = rbf_kernel(data)
-    rbf_support = support_vector(kernel, label)
-    kernel = polynomial_kernel(data)
-    pol_support = support_vector(kernel, label)
-    kernel = sigmoid_kernel(data)
-    sig_support = support_vector(kernel, label)
-    kernel = linear_kernel(data)
-    lin_support = support_vector(kernel, label)
-    intersection = set(rbf_support) | set(pol_support) | set(sig_support) | set(lin_support)
+    intersection = set(range(data.shape[0]))
+    for i in range(20):
+        kernel = rbf_kernel(data, gamma = 0.1 * i)
+        support = support_vector(kernel, label)
+        intersection = intersection & set(support)
+    # rbf_support = support_vector(kernel, label)
+    # kernel = polynomial_kernel(data)
+    # pol_support = support_vector(kernel, label)
+    # kernel = sigmoid_kernel(data)
+    # sig_support = support_vector(kernel, label)
+    # kernel = linear_kernel(data)
+    # lin_support = support_vector(kernel, label)
+    # intersection = set(rbf_support) | set(pol_support) | set(sig_support) | set(lin_support)
     return intersection
 
 
