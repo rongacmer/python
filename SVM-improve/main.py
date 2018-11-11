@@ -14,8 +14,8 @@ from sklearn.metrics import accuracy_score
 
 def main(_):
     start = time.time()
-    data, label = toolbox.loadData('pima.data')
-    f_handle = open('mulsvmlog-pima1.txt', mode='w')
+    data, label = toolbox.loadData('ionosphere.data')
+    f_handle = open('mulsvmlog-ionosphere.txt', mode='w')
     data = np.mat(data)
     label = np.array(label)
     # m = int(data.shape[0])

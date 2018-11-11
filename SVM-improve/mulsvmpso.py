@@ -148,7 +148,7 @@ def cross_test(data, label, f_handle, train_percent = None):
     if train_percent:
         mm = train_percent
     else:
-        mm = int(kernel.shape[0] * cfg.test_percent)
+        mm = int(int(kernel.shape[0] * cfg.train_percent) * cfg.test_percent)
     vacc = toolbox.computer_acc(kernel, label)[3]
     for i in range(cfg.max_step):
         f_handle.write("*******************" + str(i) + "th step*****************\n")
