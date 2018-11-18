@@ -8,7 +8,8 @@ from config import cfg
 from sklearn import metrics
 from sklearn import svm
 from sklearn import preprocessing
-
+import gdbt
+from sklearn.metrics import accuracy_score
 beforeacc = list()
 beauc = list()
 aftacc = list()
@@ -33,7 +34,7 @@ class Particle:
         self.rnd = random.Random(seed)
         self.velocity = np.mat(np.zeros((m, m)))
         label = label.T
-        lowbound, upperbound = -1, 1
+        lowbound, upperbound = 0, 1
         for i in position_list:
             self.velocity[i[0], i[1]] = (cfg.max_velocity - cfg.min_velocity) * self.rnd.random() + cfg.min_velocity
             self.velocity[i[1], i[0]] = self.velocity[i[0], i[1]]
@@ -84,6 +85,8 @@ def Solve(kernel, label, f_handle, position_list, f_test = None, train_percent =
                                     c2 * r2 * (best_swarm_position[index[0], index[1]] - swarm[i].position[index[0], index[1]])
                 swarm[i].velocity[index[1], index[0]] = swarm[i].velocity[index[0], index[1]]
             swarm[i].position = swarm[i].position + swarm[i].velocity
+            swarm[i].position[np.where(swarm[i].position < 0)] = 0
+            swarm[i].position[np.where(swarm[i].position > 1)] = 1
             nearet_spd_kernel = toolbox.nearestPD(swarm[i].position)
             accuracy, tracuracy,Vaccuracy, tPR = f_test(nearet_spd_kernel, np.ravel(label), train_percent = train_percent)
             # accuracy = [accuracy, toolbox.auc_measure(nearet_spd_kernel, np.ravel(label))[0]]
@@ -130,6 +133,15 @@ def select_position(kernel, lable, m, rate):
 
 def cross_test(data, label, f_handle, train_percent = None):
     kernel = rbf_kernel(data)
+    verify = int(cfg.train_percent * kernel.shape[0])
+    tkernel = kernel[:verify, :verify]
+    tlabel = label[:verify]
+    clf = svm.SVC(C=1.0, kernel='precomputed')
+    clf.fit(tkernel, tlabel)
+    test_kernel = kernel[verify:,:verify]
+    predict = clf.predict(test_kernel)
+    print(accuracy_score(label[verify:], predict))
+    f_handle.write(str(accuracy_score(label[verify:], predict)) + '\n')
     # kernel = preprocessing.minmax_scale(kernel)
     # kernel = kernel / max(abs(np.max(kernel)), abs(np.min(kernel)))
     # kernel = toolbox.nearestPD(kernel)
@@ -178,4 +190,17 @@ def cross_test(data, label, f_handle, train_percent = None):
     print("支持向量：", support_index)
     aftacc.append(rate)
     aftauc.append(allacuracy)
+    verify = int(cfg.train_percent * kernel.shape[0])
+    tkernel = kernel[:verify,:verify]
+    tlabel = label[:verify]
+    clf = svm.SVC(C = 1.0, kernel='precomputed')
+    clf.fit(tkernel, tlabel)
+    predict = clf.predict(kernel[verify:,:verify])
+    print(accuracy_score(label[verify:], predict))
+    f_handle.write(str(accuracy_score(label[verify:], predict)) + '\n')
+    clf1 = gdbt.gdbt(data[:verify], tkernel)
+    test_kernel = gdbt.kernel_function(clf1,data[:verify],data[verify:])
+    predict = clf.predict(test_kernel)
+    print(accuracy_score(label[verify:], predict))
+    f_handle.write(str(accuracy_score(label[verify:], predict)) + '\n')
     return kernel

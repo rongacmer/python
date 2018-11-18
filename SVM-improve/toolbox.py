@@ -10,19 +10,19 @@ from sklearn import metrics
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 34))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 18))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
     for line in fr.readlines():
         line = line.strip()
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:34])
+        returnMat[index, :] = (listFromLine[0:18])
         classLabelVector.append(float(listFromLine[-1]))
         # if classLabelVector[index] == 2:
         #     classLabelVector[index] = -1
         index += 1
-    X_scale = preprocessing.minmax_scale(returnMat)
+    X_scale = preprocessing.scale(returnMat)
     return X_scale, classLabelVector
 
 
@@ -304,7 +304,7 @@ def PR_measure(kernel, label):
     return f_target(tPR, PR), all_PR, PR, tPR
 
 def f_target(A, B, C,D):
-    res = 0.2 * A + 0.8 * B - 0.9 * A * abs(A - B) + 2 * C
+    res = 0.3 * A + 0.7 * B - 0.3 * A * abs(A - B) + C
     return res
 
 def decision_function(kernel, alpha, b):
