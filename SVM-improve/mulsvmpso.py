@@ -13,6 +13,7 @@ from sklearn.metrics import accuracy_score
 beforeacc = list()
 beauc = list()
 aftacc = list()
+studentacc = list()
 aftauc = list()
 
 def rand_pick(seq, probabilities):
@@ -140,8 +141,10 @@ def cross_test(data, label, f_handle, train_percent = None):
     clf.fit(tkernel, tlabel)
     test_kernel = kernel[verify:,:verify]
     predict = clf.predict(test_kernel)
-    print(accuracy_score(label[verify:], predict))
-    f_handle.write(str(accuracy_score(label[verify:], predict)) + '\n')
+    acc = accuracy_score(label[verify:], predict)
+    print(acc)
+    f_handle.write(str(acc) + '\n')
+    beforeacc.append(acc)
     # kernel = preprocessing.minmax_scale(kernel)
     # kernel = kernel / max(abs(np.max(kernel)), abs(np.min(kernel)))
     # kernel = toolbox.nearestPD(kernel)
@@ -153,7 +156,6 @@ def cross_test(data, label, f_handle, train_percent = None):
     # kernel = preprocessing.scale(kernel)
     # kernel = toolbox.nearestPD(kernel)
     # print(kernel)
-    beforeacc.append(acc)
     beauc.append(auc)
     rate = cfg.origin_rate
     oldaccuracy = 0
@@ -188,7 +190,6 @@ def cross_test(data, label, f_handle, train_percent = None):
     f_handle.write("支持向量:" + str(support_index) + "\n")
     print("测试集准确率：%f %f" % (rate, allacuracy) + "\n")
     print("支持向量：", support_index)
-    aftacc.append(rate)
     aftauc.append(allacuracy)
     verify = int(cfg.train_percent * kernel.shape[0])
     tkernel = kernel[:verify,:verify]
@@ -196,11 +197,15 @@ def cross_test(data, label, f_handle, train_percent = None):
     clf = svm.SVC(C = 1.0, kernel='precomputed')
     clf.fit(tkernel, tlabel)
     predict = clf.predict(kernel[verify:,:verify])
-    print(accuracy_score(label[verify:], predict))
-    f_handle.write(str(accuracy_score(label[verify:], predict)) + '\n')
+    acc = accuracy_score(label[verify:], predict)
+    print(acc)
+    f_handle.write(str(acc) + '\n')
+    aftacc.append(acc)
     clf1 = gdbt.gdbt(data[:verify], tkernel)
     test_kernel = gdbt.kernel_function(clf1,data[:verify],data[verify:])
     predict = clf.predict(test_kernel)
-    print(accuracy_score(label[verify:], predict))
-    f_handle.write(str(accuracy_score(label[verify:], predict)) + '\n')
+    acc = accuracy_score(label[verify:], predict)
+    print(acc)
+    f_handle.write(str(acc) + '\n')
+    studentacc.append(acc)
     return kernel

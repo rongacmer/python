@@ -27,7 +27,7 @@ def gdbt(data,kernel):
             index += 1
     rbf = rbfclf.rbf()
     params = {'init':rbf,'n_estimators': cfg.n_estimators, 'max_depth': cfg.max_depth, 'min_samples_split': cfg.min_samples_split,
-                  'learning_rate': cfg.learning_rate, 'loss': 'ls','subsample' : 0.8,'tol':1e-6}
+                  'learning_rate': cfg.learning_rate, 'loss': 'ls','subsample' : 0.8, 'tol':1e-6}
     clf = ensemble.GradientBoostingRegressor(**params)
     clf.fit(X, y)
     predict = clf.predict(X)

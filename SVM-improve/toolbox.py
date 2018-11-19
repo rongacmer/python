@@ -10,14 +10,14 @@ from sklearn import metrics
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 18))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 9))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
     for line in fr.readlines():
         line = line.strip()
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:18])
+        returnMat[index, :] = (listFromLine[0:9])
         classLabelVector.append(float(listFromLine[-1]))
         # if classLabelVector[index] == 2:
         #     classLabelVector[index] = -1

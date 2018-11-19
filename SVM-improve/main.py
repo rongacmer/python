@@ -14,8 +14,8 @@ from sklearn.metrics import accuracy_score
 
 def main(_):
     start = time.time()
-    data, label = toolbox.loadData('vehicle.data')
-    f_handle = open('mulsvmlog-vehicle25.txt', mode='w')
+    data, label = toolbox.loadData('wisconsin.data')
+    f_handle = open('mulsvmlog-wisconsin14.txt', mode='w')
     data = np.mat(data)
     label = np.array(label)
     # m = int(data.shape[0])
@@ -121,31 +121,37 @@ def main(_):
         mulsvmpso.cross_test(data, label, f_handle)
         TEST += 1
         print("\n\n")
-    bacc, aacc, bauc, aauc = 0, 0, 0, 0
+    bacc, aacc, bauc, aauc, sacc= 0, 0, 0, 0, 0
     times = len(mulsvmpso.aftacc)
     for i in range(len(mulsvmpso.aftacc)):
         bacc += mulsvmpso.beforeacc[i]
         aacc += mulsvmpso.aftacc[i]
         bauc += mulsvmpso.beauc[i]
         aauc += mulsvmpso.aftauc[i]
+        sacc += mulsvmpso.studentacc[i]
     bacc = bacc / times
     aacc = aacc / times
     bauc = bauc / times
     aauc = aauc / times
-    fbacc, faacc, fbauc, faauc = 0, 0, 0, 0
+    sacc = sacc / times
+    fbacc, faacc, fbauc, faauc, fsacc= 0, 0, 0, 0, 0
     for i in range(len(mulsvmpso.aftacc)):
         fbacc += (mulsvmpso.beforeacc[i] - bacc) ** 2
         faacc += (mulsvmpso.aftacc[i] - aacc) ** 2
         fbauc += (mulsvmpso.beauc[i] - bauc) ** 2
         faauc += (mulsvmpso.aftauc[i] - aauc) ** 2
+        fsacc += (mulsvmpso.studentacc[i] - sacc) ** 2
     fbacc = fbacc / times
     faacc = faacc / times
     fbauc = fbauc / times
     faauc = faauc / times
+    fsacc =  fsacc / times
     f_handle.write(str(bacc)+" " + str(bauc)+" "+str(fbacc)+" "+str(fbauc) + "\n")
     print("优化前： %f %f %f %f\n" % (bacc, bauc, fbacc, fbauc))
     f_handle.write(str(aacc) + " "+str(aauc) + " "+ str(faacc) + " "+ str(faauc)+"\n")
+    f_handle.write(str(sacc) + "" + str(fsacc) + "\n")
     print("优化后： %f %f %f %f\n" % (aacc, aauc, faacc, faauc))
+    print(sacc, fsacc)
     end = time.time()
     print("本次运行总共花费%f分钟。" % ((end - start)/60))
     f_handle.close()
