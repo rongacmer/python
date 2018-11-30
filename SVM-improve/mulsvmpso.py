@@ -10,7 +10,6 @@ from sklearn import metrics
 from sklearn import svm
 from sklearn import preprocessing
 import gdbt
-import multiprocessing
 from sklearn.metrics import accuracy_score
 beforeacc = list()
 beauc = list()

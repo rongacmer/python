@@ -3,7 +3,7 @@ import toolbox
 import time
 import numpy as np
 import copy
-import mulsvmpso
+import parallelsvm
 from sklearn import svm
 from sklearn.metrics.pairwise import rbf_kernel, polynomial_kernel, sigmoid_kernel, linear_kernel
 from config import cfg
@@ -18,7 +18,7 @@ def main(_):
     # data = np.ndarray(data)
     label = np.array(label)
     f_handle = open('sonarlog2.txt', mode='w')
-    Op_Acc,St_Acc = [],[]
+    Pre_Acc,Op_Acc,St_Acc =[],[],[]
     Train = 0
     TEST = 0
     per = 10
@@ -27,7 +27,8 @@ def main(_):
         f_handle.write("*******************" + str(Train) + "th Train *****************\n")
         print("*******************" + str(Train) + "th Train *****************\n")
         cfg.train_percent = len(data[train]) / data.shape[0]
-        Op_acc,St_acc = mulsvmpso.bagging(data[train],label[train],data[test],label[test],n_estimator=15,subsample=0.8,f_handle = f_handle)
+        Pre_acc,Op_acc,St_acc = parallelsvm.bagging(data[train],label[train],data[test],label[test],n_estimator=15,subsample=0.8,f_handle = f_handle)
+        Pre_Acc.append(Pre_acc)
         Op_Acc.append(Op_acc)
         St_Acc.append(St_acc)
         Train += 1
@@ -64,18 +65,20 @@ def main(_):
         # St_predict = np.sign(St_predict)
         # Op_acc = accuracy_score(label[train_percent:], Op_predict)
         # St_acc = accuracy_score(label[train_percent:], St_predict)
-    bacc, aacc, bauc, aauc, sacc = np.mean(mulsvmpso.beforeacc), np.mean(mulsvmpso.aftacc), np.mean(
-        mulsvmpso.beauc), np.mean(mulsvmpso.aftauc), np.mean(mulsvmpso.studentacc)
-    fbacc, faacc, fbauc, faauc, fsacc= np.std(mulsvmpso.beforeacc), np.std(mulsvmpso.aftacc), np.std(
-        mulsvmpso.beauc), np.std(mulsvmpso.aftauc), np.std(mulsvmpso.studentacc)
-    f_handle.write(str(bacc)+" " + str(bauc)+" "+str(fbacc)+" "+str(fbauc) + "\n")
-    print("优化前： %f %f %f %f\n" % (bacc, bauc, fbacc, fbauc))
-    f_handle.write(str(aacc) + " "+str(aauc) + " "+ str(faacc) + " "+ str(faauc)+"\n")
-    f_handle.write(str(sacc) + "" + str(fsacc) + "\n")
-    print("优化后： %f %f %f %f\n" % (aacc, aauc, faacc, faauc))
-    print(sacc, fsacc)
+    # bacc, aacc, bauc, aauc, sacc = np.mean(mulsvmpso.beforeacc), np.mean(mulsvmpso.aftacc), np.mean(
+    #     mulsvmpso.beauc), np.mean(mulsvmpso.aftauc), np.mean(mulsvmpso.studentacc)
+    # fbacc, faacc, fbauc, faauc, fsacc= np.std(mulsvmpso.beforeacc), np.std(mulsvmpso.aftacc), np.std(
+    #     mulsvmpso.beauc), np.std(mulsvmpso.aftauc), np.std(mulsvmpso.studentacc)
+    # f_handle.write(str(bacc)+" " + str(bauc)+" "+str(fbacc)+" "+str(fbauc) + "\n")
+    # print("优化前： %f %f %f %f\n" % (bacc, bauc, fbacc, fbauc))
+    # f_handle.write(str(aacc) + " "+str(aauc) + " "+ str(faacc) + " "+ str(faauc)+"\n")
+    # f_handle.write(str(sacc) + "" + str(fsacc) + "\n")
+    # print("优化后： %f %f %f %f\n" % (aacc, aauc, faacc, faauc))
+    # print(sacc, fsacc)
+    print(np.mean(Pre_Acc),np.std(Pre_Acc))
     print(np.mean(Op_Acc),np.std(Op_Acc))
     print(np.mean(St_Acc),np.std(St_Acc))
+    f_handle.write(str(np.mean(Pre_Acc)) + " " + str(np.std(Pre_Acc)) + "\n")
     f_handle.write(str(np.mean(Op_Acc)) + " " + str(np.std(Op_Acc)) + "\n")
     f_handle.write(str(np.mean(St_Acc)) + " " + str(np.std(St_Acc)) + "\n")
     end = time.time()
