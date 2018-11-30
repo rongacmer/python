@@ -144,11 +144,11 @@ def computer_b(dataMat,label, kernel):
 
 def computer_acc(kernel, label, train_percent = None):
     m, n = np.shape(kernel)
-    verify = int(cfg.train_percent * m)
     if train_percent:
-        test_assemble = train_percent
+        verify = train_percent
     else:
-        test_assemble = int(verify * cfg.test_percent)
+        verify = int(cfg.train_percent * m)
+    test_assemble = int(verify * cfg.test_percent)
     train_kernel = kernel[0:test_assemble, 0:test_assemble]
     train_label = label[0:test_assemble]
     test_kernel = kernel[test_assemble:verify, 0:test_assemble]

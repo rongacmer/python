@@ -45,7 +45,7 @@ class Particle:
 
 def Solve(kernel, label, position_list, f_test = None, train_percent = None):
     rnd = random.Random()
-    symbol  = Particle(-1, kernel, label, position_list, f_test, train_percent = train_percent)
+    # symbol  = Particle(-1, kernel, label, position_list, f_test, train_percent = train_percent)
     # print(symbol.best_accuracy, toolbox.computer_acc_test(symbol.best_part_position, np.ravel(label), train_percent = train_percent)[0])
     swarm = [Particle(i, kernel, label, position_list, f_test, train_percent = train_percent) for i in range(cfg.n_particles)]
     m = kernel.shape[0]
@@ -106,6 +106,7 @@ def select_position(kernel, lable, m, rate):
     return position_list
 
 def cross_test(pid,data, label, subsample, train_percent = None):
+    cfg.train_percent = train_percent / data.shape[0]
     X_train, X_test, y_train, y_test = train_test_split(data[0:train_percent], label[0:train_percent],
                                                         test_size=1 - subsample,
                                                         stratify=label[0:train_percent])
@@ -113,17 +114,17 @@ def cross_test(pid,data, label, subsample, train_percent = None):
         y_train):train_percent] = X_train, X_test, y_train, y_test
     kernel = rbf_kernel(data)
     oldaccuracy = 0
-    mm = int(int(kernel.shape[0] * cfg.train_percent) * cfg.test_percent)
+    mm = int(train_percent * cfg.test_percent)
     vacc = toolbox.computer_acc(kernel, label)[3]
     rate = 0.5 * (1 - vacc)
     for i in range(cfg.max_step):
         position_list = select_position(kernel, np.mat(label), mm, rate)
-        kernel, accuracy = Solve(kernel, np.mat(label), position_list, toolbox.computer_acc)
+        kernel, accuracy = Solve(kernel, np.mat(label), position_list, toolbox.computer_acc,train_percent = train_percent)
         if accuracy - oldaccuracy < 1e-6:
             break
         oldaccuracy = accuracy
         # rate *= 0.9
-    verify = int(cfg.train_percent * kernel.shape[0])
+    verify = train_percent
     test_assemble = int(verify * cfg.test_percent)
     tkernel = kernel[:test_assemble,:test_assemble]
     tlabel = label[:test_assemble]
