@@ -4,17 +4,20 @@ import copy
 import sys
 import toolbox
 from sklearn.metrics.pairwise import rbf_kernel, polynomial_kernel, sigmoid_kernel, linear_kernel
+from sklearn.model_selection import StratifiedKFold,train_test_split
 from config import cfg
 from sklearn import metrics
 from sklearn import svm
 from sklearn import preprocessing
 import gdbt
+import multiprocessing
 from sklearn.metrics import accuracy_score
 beforeacc = list()
 beauc = list()
 aftacc = list()
 studentacc = list()
 aftauc = list()
+pre_acc = 0.0
 
 def rand_pick(seq, probabilities):
     x = random.uniform(0, 1)
@@ -51,6 +54,8 @@ def Solve(kernel, label, f_handle, position_list, f_test = None, train_percent =
     rnd = random.Random()
     symbol  = Particle(-1, kernel, label, position_list, f_test, train_percent = train_percent)
     print(symbol.best_accuracy, toolbox.computer_acc_test(symbol.best_part_position, np.ravel(label), train_percent = train_percent)[0])
+    global pre_acc
+    pre_acc = toolbox.computer_acc(symbol.best_part_position, np.ravel(label), train_percent = train_percent)[3]
     swarm = [Particle(i, kernel, label, position_list, f_test, train_percent = train_percent) for i in range(cfg.n_particles)]
     rate, support_index, coef = toolbox.computer_acc_test(kernel, np.ravel(label), train_percent = train_percent)
     # print(swarm[1].position[x,y], symbol.position[x,y])
@@ -104,14 +109,14 @@ def Solve(kernel, label, f_handle, position_list, f_test = None, train_percent =
                 rate, support_index, coef = toolbox.computer_acc_test(best_swarm_position, np.ravel(label),train_percent = train_percent)
                 f_handle.write("测试集准确率：" + str(rate) + "\n")
                 # f_handle.write("支持向量:" + str(support_index.shape[0]) + "\n")
-                f_handle.write("f_measure:" + str(accuracy) + " " + str(tPR) + " "+ str(Vaccuracy) + "\n")
-                print("f_measure:%f %f %f" % (accuracy, tPR, Vaccuracy) + "\n")
+                f_handle.write("f_measure:" + str(accuracy) + " " + str(tracuracy) + " " + str(tPR) + " "+ str(Vaccuracy) + "\n")
+                print("f_measure:%f %f %f %f" % (accuracy, tracuracy, tPR, Vaccuracy) + "\n")
                 print("测试集准确率：%f %f" % (rate,tPR) + "\n")
             # print("支持向量：", support_index)
         epoch += 1
-    f_handle.write("支持向量:" + str(support_index) + "\n" + str(coef) + "\n")
-    print("支持向量：", support_index)
-    print("特征值:", coef )
+    # f_handle.write("支持向量:" + str(support_index) + "\n" + str(coef) + "\n")
+    # print("支持向量：", support_index)
+    # print("特征值:", coef )
     # print(best_swarm_position)
     # print(best_swarm_accuracy)
     return best_swarm_position, best_swarm_accuracy
@@ -141,7 +146,9 @@ def cross_test(data, label, f_handle, train_percent = None):
     clf.fit(tkernel, tlabel)
     test_kernel = kernel[verify:,:verify]
     predict = clf.predict(test_kernel)
+    decision = clf.decision_function(test_kernel)
     acc = accuracy_score(label[verify:], predict)
+    toolbox.checkerror(label[verify:],predict, f_handle,decision)
     print(acc)
     f_handle.write(str(acc) + '\n')
     beforeacc.append(acc)
@@ -150,20 +157,20 @@ def cross_test(data, label, f_handle, train_percent = None):
     # kernel = toolbox.nearestPD(kernel)
     acc = toolbox.computer_acc_test(kernel, label, train_percent = train_percent)[0]
     auc = toolbox.auc_measure(kernel, label, train_percent = train_percent)[3]
-    print("初始测试集准确率:%f %f" % (acc, auc))
-    f_handle.write("初始测试集准确率:%f %f" + str(acc) + str(auc))
+    # print("初始测试集准确率:%f %f" % (acc, auc))
+    # f_handle.write("初始测试集准确率:%f %f" + str(acc) + str(auc))
     # kernel = preprocessing.normalize(kernel,norm='l2')
     # kernel = preprocessing.scale(kernel)
     # kernel = toolbox.nearestPD(kernel)
     # print(kernel)
     beauc.append(auc)
-    rate = cfg.origin_rate
     oldaccuracy = 0
     if train_percent:
         mm = train_percent
     else:
         mm = int(int(kernel.shape[0] * cfg.train_percent) * cfg.test_percent)
     vacc = toolbox.computer_acc(kernel, label)[3]
+    rate = 0.5 * (1 - vacc)
     for i in range(cfg.max_step):
         f_handle.write("*******************" + str(i) + "th step*****************\n")
         position_list = select_position(kernel, np.mat(label), mm, rate)
@@ -175,7 +182,7 @@ def cross_test(data, label, f_handle, train_percent = None):
         if accuracy - oldaccuracy < 1e-6:
             break
         oldaccuracy = accuracy
-        # rate *= cfg.T
+        # rate *= 0.9
     # kernel = toolbox.nearestPD(kernel)
     f_handle.write("best_kernel:" + str(kernel) + "\n")
     f_handle.write("==========================================\n")
@@ -186,26 +193,68 @@ def cross_test(data, label, f_handle, train_percent = None):
     # print("最优核校准值：%f" % fitness)
     rate, support_index, coef = toolbox.computer_acc_test(kernel, label, train_percent = train_percent)
     allacuracy = toolbox.auc_measure(kernel, label, train_percent = train_percent)[3]
-    f_handle.write("测试集准确率：" + str(rate) +" "+str(allacuracy) + "\n")
-    f_handle.write("支持向量:" + str(support_index) + "\n")
-    print("测试集准确率：%f %f" % (rate, allacuracy) + "\n")
-    print("支持向量：", support_index)
+    # f_handle.write("测试集准确率：" + str(rate) +" "+str(allacuracy) + "\n")
+    # f_handle.write("支持向量:" + str(support_index) + "\n")
+    # print("测试集准确率：%f %f" % (rate, allacuracy) + "\n")
+    # print("支持向量：", support_index)
     aftauc.append(allacuracy)
     verify = int(cfg.train_percent * kernel.shape[0])
-    tkernel = kernel[:verify,:verify]
-    tlabel = label[:verify]
+    test_assemble = int(verify * cfg.test_percent)
+    tkernel = kernel[:test_assemble,:test_assemble]
+    tlabel = label[:test_assemble]
     clf = svm.SVC(C = 1.0, kernel='precomputed')
     clf.fit(tkernel, tlabel)
-    predict = clf.predict(kernel[verify:,:verify])
-    acc = accuracy_score(label[verify:], predict)
+    Op_predict = clf.predict(kernel[verify:,:test_assemble])
+    # decision = clf.decision_function(kernel[verify:,:verify])
+    acc = accuracy_score(label[verify:], Op_predict)
     print(acc)
     f_handle.write(str(acc) + '\n')
+    toolbox.checkerror(label[verify:], Op_predict, f_handle)
     aftacc.append(acc)
-    clf1 = gdbt.gdbt(data[:verify], tkernel)
-    test_kernel = gdbt.kernel_function(clf1,data[:verify],data[verify:])
-    predict = clf.predict(test_kernel)
-    acc = accuracy_score(label[verify:], predict)
+    clf1 = gdbt.gdbt(data[:test_assemble], tkernel)
+    test_kernel = gdbt.kernel_function(clf1,data[:test_assemble],data[verify:])
+    St_predict = clf.predict(test_kernel)
+    # decision = clf.decision_function(test_kernel)
+    acc = accuracy_score(label[verify:], St_predict)
     print(acc)
+    toolbox.checkerror(label[verify:], St_predict, f_handle)
     f_handle.write(str(acc) + '\n')
     studentacc.append(acc)
-    return kernel
+    print(oldaccuracy)
+    f_handle.write(str(oldaccuracy) + '\n')
+    print(len(clf.support_))
+    f_handle.write(str(len(clf.support_)) + '\n')
+    return Op_predict,St_predict
+
+
+def bagging(train_x,train_y,test_x,test_y,n_estimator = 15,subsample = cfg.test_percent, f_handle = None):
+    TEST = 0
+    train_percent = len(train_y)
+    data = np.vstack((train_x, test_x))
+    label = np.hstack((train_y, test_y))
+    per_predict = np.zeros(len(label[train_percent:]))
+    Op_predict = per_predict.copy()
+    St_predict = per_predict.copy()
+    for j in range(n_estimator):
+        X_train, X_test, y_train, y_test = train_test_split(data[0:train_percent], label[0:train_percent],
+                                                            test_size=1 - subsample,
+                                                            stratify=label[0:train_percent])
+        data[0: X_train.shape[0]], data[X_train.shape[0]:train_percent], label[0:len(y_train)], label[len(y_train):train_percent] = X_train, X_test, y_train, y_test
+        # for train, test in sfolder.split(crossdata, crosslabel):
+        f_handle.write("*******************" + str(TEST) + "th test *****************\n")
+        print("*******************" + str(TEST) + "th test *****************\n")
+        # data[0:len(train)], data[len(train):train_percent] = crossdata[train], crossdata[test]
+        # label[0:len(train)], label[len(train):train_percent] = crosslabel[train], crosslabel[test]
+        op_predict, st_predict = cross_test(np.mat(data), label, f_handle)
+        Op_predict += op_predict
+        St_predict += st_predict
+        TEST += 1
+    Op_predict = np.sign(Op_predict)
+    St_predict = np.sign(St_predict)
+    Op_acc = accuracy_score(label[train_percent:], Op_predict)
+    St_acc = accuracy_score(label[train_percent:], St_predict)
+    print("Op_acc,St_acc:%f,%f" % (Op_acc, St_acc))
+    f_handle.write(str(Op_acc) + " " + str(St_acc) + "\n")
+    toolbox.checkerror(label[train_percent:], Op_predict, f_handle)
+    toolbox.checkerror(label[train_percent:], St_predict, f_handle)
+    return Op_acc,St_acc

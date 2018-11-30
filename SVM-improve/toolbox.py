@@ -1,5 +1,8 @@
 import numpy as np
 import copy
+import xlrd
+import mulsvmpso
+import sys
 from config import cfg
 from sklearn import preprocessing
 from sklearn.svm import SVC
@@ -10,14 +13,14 @@ from sklearn import metrics
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 9))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 60))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
     for line in fr.readlines():
         line = line.strip()
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:9])
+        returnMat[index, :] = (listFromLine[0:60])
         classLabelVector.append(float(listFromLine[-1]))
         # if classLabelVector[index] == 2:
         #     classLabelVector[index] = -1
@@ -25,6 +28,36 @@ def loadData(filename):
     X_scale = preprocessing.scale(returnMat)
     return X_scale, classLabelVector
 
+def loadxcel(filename, kind):
+    wb = xlrd.open_workbook(filename)
+    sheet = wb.sheet_by_index(0)
+    res = np.zeros((sheet.nrows, sheet.ncols))
+    for i in range(sheet.nrows):
+        res[i] = sheet.row_values(i)
+    if kind == 'data':
+        pass
+    else:
+        res = np.ravel(res.T)
+    return res
+
+def loadfold(i):
+    path = '../Data/MCIcvsNC_fold'
+    trainx_filename =path +str(i)+'_KeyFeatures_train_x.xlsx'
+    testx_filename = path +str(i)+'_KeyFeatures_test_x.xlsx'
+    trainy_filename = path +str(i)+'_train_y.xlsx'
+    testy_filename = path +str(i)+'_test_y.xlsx'
+    train_x = loadxcel(trainx_filename, 'data')
+    test_x = loadxcel(testx_filename, 'data')
+    train_y = loadxcel(trainy_filename, 'label')
+    test_y = loadxcel(testy_filename, 'label')
+    data = np.zeros((train_x.shape[0] + test_x.shape[0], train_x.shape[1]))
+    label = np.zeros(train_y.shape[0] + test_y.shape[0])
+    data[:train_x.shape[0]] = train_x
+    data[train_x.shape[0]:] = test_x
+    data = preprocessing.scale(data)
+    label[:train_y.shape[0]] = train_y
+    label[train_y.shape[0]:] = test_y
+    return data, label, train_x.shape[0]
 
 def nearestPD(A):
     B = (A + A.T) / 2
@@ -79,7 +112,7 @@ def fitness_function(kernel, label, train_percent = None):
     # print("casssss")
     alignment_value = molecular/(m*Denominator)
     # print("ddfadsf")
-    return alignment_value,auc_measure(kernel, label)[1],0,1
+    return alignment_value,0,0,1
     # return np.sum(kernel * yy) / np.linalg.norm(kernel) / np.linalg.norm(yy)
 
 
@@ -127,9 +160,13 @@ def computer_acc(kernel, label, train_percent = None):
     traccuray = accuracy_score(train_label, predict)
     predict = clf.predict(test_kernel)
     accuracy = accuracy_score(test_label, predict)
+    # clf.fit(kernel[:verify,:verify], label[:verify])
+    # predict = clf.predict(kernel[:verify,:verify])
+    # traccuray = accuracy_score(label[:verify], predict)
     fitness = fitness_function(train_kernel, train_label)[0]
-    percent = len(clf.support_.shape) / train_kernel.shape[1]
-    return f_target(traccuray, accuracy, fitness, percent),auc_measure(kernel, label, train_percent)[1], traccuray, accuracy
+    support = len(clf.support_)
+    percent = support / test_assemble
+    return f_target(traccuray, accuracy, fitness, 1 - percent),percent, traccuray, accuracy
 
 
 def computer_acc_test(kernel, label, train_percent = None):
@@ -303,11 +340,32 @@ def PR_measure(kernel, label):
     # all_PR = pr_area(all_decision, alllabel)
     return f_target(tPR, PR), all_PR, PR, tPR
 
-def f_target(A, B, C,D):
-    res = 0.3 * A + 0.7 * B - 0.3 * A * abs(A - B) + C
+def f_target(A, B, C, D):
+    # print("pre_acc: %f" %(mulsvmpso.pre_acc))
+    res = 0.1 * A + 0.3 * B +  0.1 * C/0.1 + 0.4 /(1 + np.e **(D - 1)) - 0.1 * np.abs(A - B)
+    # spacing = sys.float_info.min
+    # if B >= 0.8:
+    #     res = 0.1 * A + 0.2 * B + 0.3 / (1 + np.e ** (- (spacing + np.abs(A - B)))) + 0.3 * D + 0.1 * C
+    # else:
+    #     res = 0.1 * A + 0.4 * B + 0.3/(1 + np.e ** (- (spacing + np.abs(A - B)))) + 0.1 * D + 0.1 * C
     return res
 
 def decision_function(kernel, alpha, b):
     decision = alpha * kernel.T + b
     print(decision)
     return decision
+
+def checkerror(y_true, predict, f_handle,decision = None):
+    index = 0
+    for i, j in zip(y_true, predict):
+        if i != j:
+            print(index,end = " ")
+            f_handle.write(str(index) + " ")
+        index += 1
+    f_handle.write("\n\n")
+    print("\n")
+
+def predict(data,label,train_percent):
+    clf = SVC(C = cfg.C, kernel = 'rbf',gamma = 'auto')
+    clf.fit(data[:train_percent],label[:train_percent])
+    return clf.predict(data[train_percent:])
