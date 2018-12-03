@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import toolbox
 from sklearn.metrics.pairwise import rbf_kernel
 from config import cfg
@@ -27,7 +27,7 @@ def gdbt(data,kernel):
             index += 1
     rbf = rbfclf.rbf()
     params = {'n_estimators': cfg.n_estimators, 'max_depth': cfg.max_depth, 'min_samples_split': cfg.min_samples_split,
-                  'learning_rate': cfg.learning_rate, 'loss': 'ls','subsample' : 0.8, 'tol':1e-6}
+                  'learning_rate': cfg.learning_rate, 'loss': 'ls','subsample' : 0.8}
     clf = ensemble.GradientBoostingRegressor(**params)
     clf.fit(X, y)
     predict = clf.predict(X)
@@ -56,6 +56,15 @@ def kernel_function(clf, train_data, test_data):
             x = np.square(test_data[i] - train_data[j])
             test_kernel[i, j] = clf.predict(x)
     return test_kernel
+
+def stu_kernel(clf,train_data):
+    kernel = np.mat(np.zeros((train_data.shape[0],train_data.shape[0])))
+    for i in range(train_data.shape[0]):
+        for j in range(i,train_data.shape[0]):
+            x = np.square(train_data[i] - train_data[j])
+            kernel[i,j] = clf.predict(x)
+            kernel[j,i] = kernel[i,j]
+    return kernel
 
 # rbf = rbfclf.rbf()
 # X = np.linspace(0,100,100)

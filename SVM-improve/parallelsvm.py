@@ -120,8 +120,8 @@ def cross_test(pid,data, label, subsample, train_percent = None):
     for i in range(cfg.max_step):
         position_list = select_position(kernel, np.mat(label), mm, rate)
         kernel, accuracy = Solve(kernel, np.mat(label), position_list, toolbox.computer_acc,train_percent = train_percent)
-        if accuracy - oldaccuracy < 1e-6:
-            break
+        # if accuracy - oldaccuracy < 1e-6:
+            # break
         oldaccuracy = accuracy
         # rate *= 0.9
     verify = train_percent

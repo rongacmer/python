@@ -13,17 +13,18 @@ from sklearn import metrics
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 60))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 3))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
     for line in fr.readlines():
         line = line.strip()
+        # line = line.replace('\t\t','\t')
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:60])
+        returnMat[index, :] = (listFromLine[0:3])
         classLabelVector.append(float(listFromLine[-1]))
-        # if classLabelVector[index] == 2:
-        #     classLabelVector[index] = -1
+        if classLabelVector[index] == 2:
+            classLabelVector[index] = -1
         index += 1
     X_scale = preprocessing.scale(returnMat)
     return X_scale, classLabelVector
@@ -41,7 +42,7 @@ def loadxcel(filename, kind):
     return res
 
 def loadfold(i):
-    path = '../Data/MCIcvsNC_fold'
+    path = '../Data/MCIcvsMCInc_fold'
     trainx_filename =path +str(i)+'_KeyFeatures_train_x.xlsx'
     testx_filename = path +str(i)+'_KeyFeatures_test_x.xlsx'
     trainy_filename = path +str(i)+'_train_y.xlsx'
