@@ -14,36 +14,38 @@ from sklearn.metrics import accuracy_score
 
 def main(_):
     start = time.time()
-    # data, label = toolbox.loadData('Harberman.data')
-    #
-    # label = np.array(label)
-    f_handle = open('MCIcvsMCInclog.txt', mode='w')
+    data, label = toolbox.loadData('wisconsin.data')
+
+    label = np.array(label)
+    f_handle = open('wisconsinlog1.txt', mode='w')
     Pre_Acc,Op_Acc,St_Acc =[],[],[]
     Train = 0
     TEST = 0
     # per = 5
     # sfolder = StratifiedKFold(n_splits=per, shuffle=True)
+    for test in range(10):
     # for train, test in sfolder.split(data, label):
-    #     f_handle.write("*******************" + str(Train) + "th Train *****************\n")
-    #     print("*******************" + str(Train) + "th Train *****************\n")
-    #     cfg.train_percent = len(data[train]) / data.shape[0]
-    #     Pre_acc,Op_acc,St_acc = parallelsvm.bagging(data[train],label[train],data[test],label[test],n_estimator=15,subsample=0.8,f_handle = f_handle)
-    #     Pre_Acc.append(Pre_acc)
-    #     Op_Acc.append(Op_acc)
-    #     St_Acc.append(St_acc)
-    #     Train += 1
-    for i in range(5):
         f_handle.write("*******************" + str(Train) + "th Train *****************\n")
         print("*******************" + str(Train) + "th Train *****************\n")
-        data, label, train_percent = toolbox.loadfold(i + 1)
-        # X_train, X_test, y_train, y_test = train_test_split(data[0:train_percent], label[0:train_percent], test_size=1 - cfg.test_percent ,stratify=label[0:train_percent])
-        # data[0: X_train.shape[0]], data[X_train.shape[0]:train_percent], label[0:len(y_train)], label[len(y_train):train_percent] = X_train, X_test, y_train, y_test
-        cfg.train_percent = train_percent / data.shape[0]
-        Pre_acc, Op_acc, St_acc = parallelsvm.bagging(data[:train_percent], label[:train_percent], data[train_percent:], label[train_percent:], n_estimator=15,subsample=0.8, f_handle=f_handle)
+        cfg.train_percent = 200 / data.shape[0]
+        X_train, X_test, y_train, y_test = train_test_split(data, label, test_size=200 ,stratify=label)
+        Pre_acc,Op_acc,St_acc = parallelsvm.bagging(X_test,y_test,X_train,y_train,n_estimator=15,subsample=0.8,f_handle = f_handle)
         Pre_Acc.append(Pre_acc)
         Op_Acc.append(Op_acc)
         St_Acc.append(St_acc)
         Train += 1
+    # for i in range(5):
+    #     f_handle.write("*******************" + str(Train) + "th Train *****************\n")
+    #     print("*******************" + str(Train) + "th Train *****************\n")
+    #     data, label, train_percent = toolbox.loadfold(i + 1)
+    #     # X_train, X_test, y_train, y_test = train_test_split(data[0:train_percent], label[0:train_percent], test_size=1 - cfg.test_percent ,stratify=label[0:train_percent])
+    #     # data[0: X_train.shape[0]], data[X_train.shape[0]:train_percent], label[0:len(y_train)], label[len(y_train):train_percent] = X_train, X_test, y_train, y_test
+    #     cfg.train_percent = train_percent / data.shape[0]
+    #     Pre_acc, Op_acc, St_acc = parallelsvm.bagging(data[:train_percent], label[:train_percent], data[train_percent:], label[train_percent:], n_estimator=15,subsample=0.8, f_handle=f_handle)
+    #     Pre_Acc.append(Pre_acc)
+    #     Op_Acc.append(Op_acc)
+    #     St_Acc.append(St_acc)
+    #     Train += 1
         # per = 5
         # sfolder = StratifiedKFold(n_splits = per, random_state = 0, shuffle = True)
         # crossdata = data[:train_percent]
