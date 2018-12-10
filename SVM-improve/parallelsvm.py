@@ -116,14 +116,14 @@ def cross_test(pid,data, label, subsample, train_percent = None):
     oldaccuracy = 0
     mm = int(train_percent * cfg.test_percent)
     vacc = toolbox.computer_acc(kernel, label)[3]
-    rate = 0.5 * (1 - vacc)
+    rate = 0.3
     for i in range(cfg.max_step):
         position_list = select_position(kernel, np.mat(label), mm, rate)
         kernel, accuracy = Solve(kernel, np.mat(label), position_list, toolbox.computer_acc,train_percent = train_percent)
-        # if accuracy - oldaccuracy < 1e-6:
-            # break
+        if accuracy - oldaccuracy < 1e-6:
+            break
         oldaccuracy = accuracy
-        # rate *= 0.9
+        rate *= 0.9
     verify = train_percent
     test_assemble = int(verify * cfg.test_percent)
     tkernel = kernel[:test_assemble,:test_assemble]
@@ -160,8 +160,10 @@ def bagging(train_x,train_y,test_x,test_y,n_estimator = 15,subsample = cfg.test_
     mul_res = [pool.apply_async(cross_test,(i,np.mat(data.copy()),label.copy(),subsample,train_percent,)) for i in range(n_estimator)]
     pool.close()
     pool.join()
+    # for i in range(n_estimator):
     for res in mul_res:
         tmp = res.get()
+        # tmp = cross_test(i,np.mat(data.copy()),label.copy(),subsample,train_percent)
         Op_predict += tmp[0]
         St_predict += tmp[1]
     Op_predict = np.sign(Op_predict)

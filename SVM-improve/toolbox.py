@@ -13,7 +13,7 @@ from sklearn import metrics
 def loadData(filename):
     fr = open(filename)
     numberOfLines = len(fr.readlines())         #get the number of lines in the file
-    returnMat = np.zeros((numberOfLines, 3))        #prepare matrix to return
+    returnMat = np.zeros((numberOfLines, 34))        #prepare matrix to return
     classLabelVector = []                       #prepare labels return
     fr = open(filename)
     index = 0
@@ -21,7 +21,7 @@ def loadData(filename):
         line = line.strip()
         # line = line.replace('\t\t','\t')
         listFromLine = line.split(',')
-        returnMat[index, :] = (listFromLine[0:3])
+        returnMat[index, :] = (listFromLine[0:34])
         classLabelVector.append(float(listFromLine[-1]))
         if classLabelVector[index] == 2:
             classLabelVector[index] = -1
@@ -42,9 +42,11 @@ def loadxcel(filename, kind):
     return res
 
 def loadfold(i):
-    path = '../Data/MCIcvsMCInc_fold'
-    trainx_filename =path +str(i)+'_KeyFeatures_train_x.xlsx'
-    testx_filename = path +str(i)+'_KeyFeatures_test_x.xlsx'
+    path = '../Data1/MCIcvsMCInc_fold'
+    trainx_filename =path +str(i)+'_train_x_key_features.xlsx'
+    testx_filename = path +str(i)+'_test_x_key_features.xlsx'
+    # trainx_filename =path +str(i)+'_KeyFeatures_train_x.xlsx'
+    # testx_filename = path +str(i)+'_KeyFeatures_test_x.xlsx'
     trainy_filename = path +str(i)+'_train_y.xlsx'
     testy_filename = path +str(i)+'_test_y.xlsx'
     train_x = loadxcel(trainx_filename, 'data')
@@ -58,6 +60,7 @@ def loadfold(i):
     data = preprocessing.scale(data)
     label[:train_y.shape[0]] = train_y
     label[train_y.shape[0]:] = test_y
+    label[np.where(label == 0)] = -1
     return data, label, train_x.shape[0]
 
 def nearestPD(A):
@@ -157,18 +160,29 @@ def computer_acc(kernel, label, train_percent = None):
     # train_label = np.reshape(train_label, (len(train_label, )))
     clf = SVC(C=cfg.C, kernel='precomputed')
     clf.fit(train_kernel, train_label)
-    predict = clf.predict(train_kernel)
-    traccuray = accuracy_score(train_label, predict)
+    decision = clf.decision_function(test_kernel)
+    neg = np.where(decision < 0)
+    pos = np.where(decision > 0)
+    # if len(neg[0]) == 0:
+    #     neg_decision = 0
+    # else:
+    #     neg_decision = np.max(decision[neg])
+    # if len(pos[0]) == 0:
+    #     pos_decision = 0
+    # else:
+    #     pos_decision = np.min(decision[pos])
+    # predict = clf.predict(train_kernel)
+    # traccuray = accuracy_score(train_label, predict)
     predict = clf.predict(test_kernel)
     accuracy = accuracy_score(test_label, predict)
-    # clf.fit(kernel[:verify,:verify], label[:verify])
-    # predict = clf.predict(kernel[:verify,:verify])
-    # traccuray = accuracy_score(label[:verify], predict)
+    clf.fit(kernel[:verify,:verify], label[:verify])
+    predict = clf.predict(kernel[:verify,:verify])
+    traccuray = accuracy_score(label[:verify], predict)
     fitness = fitness_function(train_kernel, train_label)[0]
     support = len(clf.support_)
     percent = support / test_assemble
     return f_target(traccuray, accuracy, fitness, 1 - percent),percent, traccuray, accuracy
-
+    # return pos_decision- neg_decision,0,0,accuracy
 
 def computer_acc_test(kernel, label, train_percent = None):
     m, n = np.shape(kernel)
@@ -343,7 +357,7 @@ def PR_measure(kernel, label):
 
 def f_target(A, B, C, D):
     # print("pre_acc: %f" %(mulsvmpso.pre_acc))
-    res = 0.1 * A + 0.3 * B +  0.1 * C/0.1 + 0.4 /(1 + np.e **(D - 1)) - 0.1 * np.abs(A - B)
+    res = 0.1 * A + 0.3 * B +  0.1 * C/0.1 + 0.4 /(1 + np.e **(D - 1))
     # spacing = sys.float_info.min
     # if B >= 0.8:
     #     res = 0.1 * A + 0.2 * B + 0.3 / (1 + np.e ** (- (spacing + np.abs(A - B)))) + 0.3 * D + 0.1 * C
